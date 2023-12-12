@@ -37,7 +37,7 @@ class ConsistencyDecoder:
     def decode(self, latent):    
         print(latent["samples"].shape)
         sample = self.vae.decode(latent["samples"].half().cuda()).sample
-        sample = sample.clamp(-1, 1).movedim(1,-1).add(1.).mul(0.5)
+        sample = sample.clamp(-1, 1).movedim(1,-1).add(1.).mul(0.5).cpu()
         return (sample, )
 
 
