@@ -1,6 +1,5 @@
 import os
 import torch
-from comfy import model_management
 from diffusers import ConsistencyDecoderVAE
 
 
