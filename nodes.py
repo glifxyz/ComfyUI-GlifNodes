@@ -66,14 +66,62 @@ class PatchDecoderTiled:
         ).to("cuda").movedim(1,-1)
 
         return (vae,)
+    
+# quick node to set SDXL-friendly aspect ratios in 1024^2
+# adapted from throttlekitty
+class SDXLAspectRatio:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+                "required": {
+                    "image": ("IMAGE",),
+            }
+        }
+    RETURN_TYPES = ("INT", "INT")
+    RETURN_NAMES = ("width", "height")
+    FUNCTION = "SDXL_AspectRatio"
+    CATEGORY = "image"
+
+    def SDXL_AspectRatio(self, image):
+        print(image.shape)
+        height = image.shape[1]
+        width = image.shape[2]
+
+        aspect_ratio = width / height
+
+        aspect_ratios = (
+            (1/1, 1024, 1024),
+            (2/3, 832, 1216),
+            (3/4, 896, 1152),
+            (5/8, 768, 1216),
+            (9/16, 768, 1344),
+            (9/19, 704, 1472),
+            (9/21, 640, 1536),
+            (3/2, 1216, 832),
+            (4/3, 1152, 896),
+            (8/5, 1216, 768),
+            (16/9, 1344, 768),
+            (19/9, 1472, 704),
+            (21/9, 1536, 640),
+        )
+
+        # find the closest aspect ratio
+        closest = min(aspect_ratios, key=lambda x:abs(x[0]-aspect_ratio))
+        
+        return (closest[1], closest[2])
 
 
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
+    "SDXLAspectRatio": SDXLAspectRatio
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "GlifConsistencyDecoder": "Consistency VAE Decoder",
     "GlifPatchConsistencyDecoderTiled": "Patch Consistency VAE Decoder",
+    "Image2SDXL_WH": "Image to SDXL compatible WH"
 }
