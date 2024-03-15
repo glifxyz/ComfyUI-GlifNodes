@@ -12,15 +12,19 @@ pip install -r requirements.txt
 
 <details>
   <summary><b><code>GlifConsistencyDecoder</code></b> openai's consistency decoder from hf hub</summary>
-    <img src="docs/consistency_decoder.png" height="500px"/>
+    <img src="docs/consistency_vae.png" height="500px"/>
 </details>
 <details>
   <summary><b><code>🧪GlifPatchConsistencyDecoderTiled</code></b> decoder supporting tiled decoding</summary>
-    <img src="docs/consistency_decoder.png" height="500px"/>
+    <img src="docs/patch_vae.png" height="500px"/>
 </details>
 <details>
-  <summary><b><code>ImageToSDXLImageSize</code></b> find the closest SDXL height and widht for an image</summary>
-    <img src="docs/consistency_decoder.png" height="500px"/>
+  <summary><b><code>ImageToSDXLImageSize</code></b> find the closest SDXL height and width for an image</summary>
+    <img src="docs/sdxl_aspect_ratio.png" height="500px"/>
+</details>
+<details>
+  <summary><b><code>ImageToMultipleOf</code></b> either crop or stretch an image to a multiple of a specific value</summary>
+    <img src="docs/multiple_of.png" height="500px"/>
 </details>
 
 <br>
