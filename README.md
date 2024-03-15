@@ -19,7 +19,7 @@ pip install -r requirements.txt
     <img src="docs/patch_vae.png" height="500px"/>
 </details>
 <details>
-  <summary><b><code>ImageToSDXLImageSize</code></b> find the closest SDXL height and width for an image</summary>
+  <summary><b><code>SDXLAspectRatio</code></b> find the closest SDXL height and width for an image</summary>
     <img src="docs/sdxl_aspect_ratio.png" height="500px"/>
 </details>
 <details>

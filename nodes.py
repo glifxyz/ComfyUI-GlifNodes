@@ -84,7 +84,7 @@ class PatchDecoderTiled:
 
 # quick node to set SDXL-friendly aspect ratios in 1024^2
 # adapted from throttlekitty
-class ImageToSDXLImageSize:
+class SDXLAspectRatio:
     def __init__(self):
         pass
 
@@ -177,13 +177,13 @@ class ImageToMultipleOf:
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
-    "ImageToSDXLImageSize": ImageToSDXLImageSize,
+    "SDXLAspectRatio": SDXLAspectRatio,
     "ImageToMultipleOf": ImageToMultipleOf,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "GlifConsistencyDecoder": "Consistency VAE Decoder",
     "GlifPatchConsistencyDecoderTiled": "Patch Consistency VAE Decoder",
-    "ImageToSDXLImageSize": "Image to SDXL compatible WH",
+    "SDXLAspectRatio": "Image to SDXL compatible WH",
     "ImageToMultipleOf": "Image to Multiple of",
 }
