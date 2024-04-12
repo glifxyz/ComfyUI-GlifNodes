@@ -26,6 +26,10 @@ pip install -r requirements.txt
   <summary><b><code>ImageToMultipleOf</code></b> either crop or stretch an image to a multiple of a specific value</summary>
     <img src="docs/multiple_of.png" max-height="500px"/>
 </details>
+<details>
+  <summary><b><code>HFHubLoraLoader</code></b> load LoRAs directly from Huggingface</summary>
+    <img src="docs/load_hf_lora.png" max-height="500px"/>
+</details>
 
 <br>
 
