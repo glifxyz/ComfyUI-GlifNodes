@@ -5,6 +5,9 @@ import torch
 import torch.nn.functional as F
 from diffusers import ConsistencyDecoderVAE
 from torch import Tensor
+import comfy.sd
+import comfy.utils
+from huggingface_hub import hf_hub_download
 
 
 def find_or_create_cache():
@@ -174,11 +177,97 @@ class ImageToMultipleOf:
             return (image[:, top:bottom, left:right, :],)
 
 
+class HFHubLoraLoader:
+    def __init__(self):
+        self.loaded_lora = None
+        self.loaded_lora_path = None
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "clip": ("CLIP",),
+                "repo_id": (
+                    "STRING",
+                    {
+                        "default": ""
+                    }
+                ),
+                "subfolder": (
+                    "STRING",
+                    {
+                        "default": ""
+                    }
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": ""
+                    }
+                ),
+                "strength_model": (
+                    "FLOAT", {
+                        "default": 1.0,
+                        "min": -20.0,
+                        "max": 20.0,
+                        "step": 0.01
+                    }
+                ),
+                "strength_clip": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": -20.0,
+                        "max": 20.0,
+                        "step": 0.01
+                    }
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CLIP")
+    FUNCTION = "load_lora"
+
+    CATEGORY = "loaders"
+
+    def load_lora(self, model, clip, repo_id: str, subfolder: str, filename: str, strength_model: float,
+                  strength_clip: float):
+        if strength_model == 0 and strength_clip == 0:
+            return (model, clip)
+
+        lora_path = hf_hub_download(
+            repo_id=repo_id.strip(),
+            subfolder=None if subfolder is None or subfolder.strip() == "" else subfolder.strip(),
+            filename=filename.strip(),
+            cache_dir=find_or_create_cache(),
+        )
+
+        lora = None
+        if self.loaded_lora is not None:
+            if self.loaded_lora_path == lora_path:
+                lora = self.loaded_lora
+            else:
+                temp = self.loaded_lora
+                self.loaded_lora = None
+                del temp
+                self.loaded_lora_path = None
+
+        if lora is None:
+            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+            self.loaded_lora = lora
+            self.loaded_lora_path = lora_path
+
+        model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
+        return (model_lora, clip_lora)
+
+
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
     "SDXLAspectRatio": SDXLAspectRatio,
     "ImageToMultipleOf": ImageToMultipleOf,
+    "HFHubLoraLoader": HFHubLoraLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -186,4 +275,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GlifPatchConsistencyDecoderTiled": "Patch Consistency VAE Decoder",
     "SDXLAspectRatio": "Image to SDXL compatible WH",
     "ImageToMultipleOf": "Image to Multiple of",
+    "HFHubLoraLoader": "Load HF Lora",
 }
