@@ -262,12 +262,62 @@ class HFHubLoraLoader:
         return (model_lora, clip_lora)
 
 
+class GlifVariable:
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "variable": (
+                    ["", ],
+                ),
+                "fallback": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "single_line": True,
+                    }
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "INT", "FLOAT")
+    FUNCTION = "do_it"
+
+    CATEGORY = "glif/variables"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, variable: str, fallback: str):
+        # Since we populate dynamically, comfy will report invalid inputs. Override to always return True
+        return True
+
+    def do_it(self, variable: str, fallback: str):
+        variable = variable.strip()
+        fallback = fallback.strip()
+        if variable == "" or (variable.startswith("{") and variable.endswith("}")):
+            variable = fallback
+
+        int_val = 0
+        float_val = 0.0
+        string_val = f"{variable}"
+        try:
+            int_val = int(variable)
+        except Exception as e:
+            pass
+        try:
+            float_val = float(variable)
+        except Exception as e:
+            pass
+        return (string_val, int_val, float_val)
+
+
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
     "SDXLAspectRatio": SDXLAspectRatio,
     "ImageToMultipleOf": ImageToMultipleOf,
     "HFHubLoraLoader": HFHubLoraLoader,
+    "GlifVariable": GlifVariable,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -276,4 +326,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDXLAspectRatio": "Image to SDXL compatible WH",
     "ImageToMultipleOf": "Image to Multiple of",
     "HFHubLoraLoader": "Load HF Lora",
+    "GlifVariable": "Glif Variable",
 }

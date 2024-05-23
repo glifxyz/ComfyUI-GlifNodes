@@ -30,6 +30,10 @@ pip install -r requirements.txt
   <summary><b><code>HFHubLoraLoader</code></b> load LoRAs directly from Huggingface</summary>
     <img src="docs/load_hf_lora.png" max-height="500px"/>
 </details>
+<details>
+  <summary><b><code>GlifVariable</code></b> easily use glif variables on the glif comfy editor</summary>
+    <img src="docs/glif_variable.png" max-height="500px"/>
+</details>
 
 <br>
 
