@@ -263,9 +263,6 @@ class HFHubLoraLoader:
 
 
 class GlifVariable:
-    def __init__(self):
-        self.loaded_lora = None
-        self.loaded_lora_path = None
 
     @classmethod
     def INPUT_TYPES(s):
