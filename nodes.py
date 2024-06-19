@@ -1,13 +1,15 @@
 import os
 from typing import Tuple
 
-import torch
-import torch.nn.functional as F
-from diffusers import ConsistencyDecoderVAE
-from torch import Tensor
 import comfy.sd
 import comfy.utils
+import torch
+import torch.nn.functional as F
+from comfy.sd import CLIP
+from diffusers import ConsistencyDecoderVAE
+from folder_paths import get_folder_paths
 from huggingface_hub import hf_hub_download
+from torch import Tensor
 
 
 def find_or_create_cache():
@@ -163,12 +165,14 @@ class ImageToMultipleOf:
         new_width = width - (width % multiple_of)
 
         if method == "rescale":
-            return (F.interpolate(
-                image.unsqueeze(0),
-                size=(new_height, new_width),
-                mode='bilinear',
-                align_corners=False
-            ).squeeze(0),)
+            return (
+                F.interpolate(
+                    image.unsqueeze(0),
+                    size=(new_height, new_width),
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(0),
+            )
         else:
             top = (height - new_height) // 2
             left = (width - new_width) // 2
@@ -188,40 +192,16 @@ class HFHubLoraLoader:
             "required": {
                 "model": ("MODEL",),
                 "clip": ("CLIP",),
-                "repo_id": (
-                    "STRING",
-                    {
-                        "default": ""
-                    }
-                ),
-                "subfolder": (
-                    "STRING",
-                    {
-                        "default": ""
-                    }
-                ),
-                "filename": (
-                    "STRING",
-                    {
-                        "default": ""
-                    }
-                ),
+                "repo_id": ("STRING", {"default": ""}),
+                "subfolder": ("STRING", {"default": ""}),
+                "filename": ("STRING", {"default": ""}),
                 "strength_model": (
-                    "FLOAT", {
-                        "default": 1.0,
-                        "min": -20.0,
-                        "max": 20.0,
-                        "step": 0.01
-                    }
+                    "FLOAT",
+                    {"default": 1.0, "min": -20.0, "max": 20.0, "step": 0.01},
                 ),
                 "strength_clip": (
                     "FLOAT",
-                    {
-                        "default": 1.0,
-                        "min": -20.0,
-                        "max": 20.0,
-                        "step": 0.01
-                    }
+                    {"default": 1.0, "min": -20.0, "max": 20.0, "step": 0.01},
                 ),
             }
         }
@@ -231,14 +211,24 @@ class HFHubLoraLoader:
 
     CATEGORY = "loaders"
 
-    def load_lora(self, model, clip, repo_id: str, subfolder: str, filename: str, strength_model: float,
-                  strength_clip: float):
+    def load_lora(
+        self,
+        model,
+        clip,
+        repo_id: str,
+        subfolder: str,
+        filename: str,
+        strength_model: float,
+        strength_clip: float,
+    ):
         if strength_model == 0 and strength_clip == 0:
             return (model, clip)
 
         lora_path = hf_hub_download(
             repo_id=repo_id.strip(),
-            subfolder=None if subfolder is None or subfolder.strip() == "" else subfolder.strip(),
+            subfolder=None
+            if subfolder is None or subfolder.strip() == ""
+            else subfolder.strip(),
             filename=filename.strip(),
             cache_dir=find_or_create_cache(),
         )
@@ -258,25 +248,67 @@ class HFHubLoraLoader:
             self.loaded_lora = lora
             self.loaded_lora_path = lora_path
 
-        model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
+        model_lora, clip_lora = comfy.sd.load_lora_for_models(
+            model, clip, lora, strength_model, strength_clip
+        )
         return (model_lora, clip_lora)
 
 
-class GlifVariable:
+class HFHubEmbeddingLoader:
+    """Load a text model embedding from Huggingface Hub.
+    The connected CLIP model is not manipulated."""
 
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
+                "clip": ("CLIP",),
+                "repo_id": ("STRING", {"default": ""}),
+                "subfolder": ("STRING", {"default": ""}),
+                "filename": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("CLIP",)
+    FUNCTION = "download_embedding"
+
+    CATEGORY = "n/a"
+
+    def download_embedding(
+        self,
+        clip: CLIP,  # added to signify it's best put in between nodes
+        repo_id: str,
+        subfolder: str,
+        filename: str,
+    ):
+        hf_hub_download(
+            repo_id=repo_id.strip(),
+            subfolder=None
+            if subfolder is None or subfolder.strip() == ""
+            else subfolder.strip(),
+            filename=filename.strip(),
+            local_dir=get_folder_paths("embeddings")[0],
+        )
+
+        return (clip,)
+
+
+class GlifVariable:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
                 "variable": (
-                    ["", ],
+                    [
+                        "",
+                    ],
                 ),
                 "fallback": (
                     "STRING",
                     {
                         "default": "",
                         "single_line": True,
-                    }
+                    },
                 ),
             }
         }
@@ -302,11 +334,11 @@ class GlifVariable:
         string_val = f"{variable}"
         try:
             int_val = int(variable)
-        except Exception as e:
+        except Exception as _:
             pass
         try:
             float_val = float(variable)
-        except Exception as e:
+        except Exception as _:
             pass
         return (string_val, int_val, float_val)
 
@@ -317,6 +349,7 @@ NODE_CLASS_MAPPINGS = {
     "SDXLAspectRatio": SDXLAspectRatio,
     "ImageToMultipleOf": ImageToMultipleOf,
     "HFHubLoraLoader": HFHubLoraLoader,
+    "HFHubEmbeddingLoader": HFHubEmbeddingLoader,
     "GlifVariable": GlifVariable,
 }
 
@@ -326,5 +359,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDXLAspectRatio": "Image to SDXL compatible WH",
     "ImageToMultipleOf": "Image to Multiple of",
     "HFHubLoraLoader": "Load HF Lora",
+    "HFHubEmbeddingLoader": "Load HF Embedding",
     "GlifVariable": "Glif Variable",
 }
