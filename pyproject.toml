@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-glifnodes"
-description = "Nodes:Consistency VAE Decoder."
+description = "Custom set of nodes used by glif.app. With glif you can build mini apps that are powered by custom comfy workflows."
 version = "1.0.0"
 license = "LICENSE"
 dependencies = ["diffusers==0.24.0"]
@@ -10,6 +10,6 @@ Repository = "https://github.com/glifxyz/ComfyUI-GlifNodes"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "dham"
 DisplayName = "ComfyUI-GlifNodes"
-Icon = ""
+Icon = "🇬"
