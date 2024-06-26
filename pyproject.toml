@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-glifnodes"
+description = "Nodes:Consistency VAE Decoder."
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["diffusers==0.24.0"]
+
+[project.urls]
+Repository = "https://github.com/glifxyz/ComfyUI-GlifNodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-GlifNodes"
+Icon = ""
