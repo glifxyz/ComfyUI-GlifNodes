@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 from comfy.sd import CLIP
 from diffusers import ConsistencyDecoderVAE
-from folder_paths import get_folder_paths
+import folder_paths
 from huggingface_hub import hf_hub_download
 from torch import Tensor
 
@@ -287,7 +287,7 @@ class HFHubEmbeddingLoader:
             if subfolder is None or subfolder.strip() == ""
             else subfolder.strip(),
             filename=filename.strip(),
-            local_dir=get_folder_paths("embeddings")[0],
+            local_dir=folder_paths.get_folder_paths("embeddings")[0],
         )
 
         return (clip,)
@@ -343,6 +343,57 @@ class GlifVariable:
         return (string_val, int_val, float_val)
 
 
+class GlifmojiLoader:
+    """Make sure they keyword in the positive prompt is `ohwx person`."""
+
+    def __init__(self):
+        self.loaded_lora = None
+
+    @classmethod
+    def INPUT_TYPES(s):
+        glifmojis = set()
+        for glifmoji in folder_paths.get_filename_list("glifmojis"):
+            glifmojis.add(glifmoji.split("/")[0])
+
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "clip": ("CLIP",),
+                "glifmoji": (list(glifmojis),),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CLIP")
+    FUNCTION = "load_glifmoji"
+
+    CATEGORY = "loaders"
+
+    def load_glifmoji(self, model, clip, glifmoji):
+        lora_path = folder_paths.get_full_path(
+            "glifmojis", f"{glifmoji}/pytorch_lora_weights.safetensors"
+        )
+        lora = None
+        if self.loaded_lora is not None:
+            if self.loaded_lora[0] == lora_path:
+                lora = self.loaded_lora[1]
+            else:
+                temp = self.loaded_lora
+                self.loaded_lora = None
+                del temp
+
+        if lora is None:
+            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+            self.loaded_lora = (lora_path, lora)
+
+        model_lora, clip_lora = comfy.sd.load_lora_for_models(
+            model, clip, lora, 1.0, 1.0
+        )
+        return (
+            model_lora,
+            clip_lora,
+        )
+
+
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
@@ -351,6 +402,7 @@ NODE_CLASS_MAPPINGS = {
     "HFHubLoraLoader": HFHubLoraLoader,
     "HFHubEmbeddingLoader": HFHubEmbeddingLoader,
     "GlifVariable": GlifVariable,
+    "GlifmojiLoader": GlifmojiLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -361,4 +413,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "HFHubLoraLoader": "Load HF Lora",
     "HFHubEmbeddingLoader": "Load HF Embedding",
     "GlifVariable": "Glif Variable",
+    "GlifmojiLoader": "Load Glifmoji",
 }
