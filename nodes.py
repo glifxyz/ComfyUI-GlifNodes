@@ -26,13 +26,12 @@ def find_or_create_cache():
 
 
 class ConsistencyDecoder:
+    CATEGORY = "latent"
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {"latent": ("LATENT",)}}
-
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "decode"
-    CATEGORY = "latent"
 
     def __init__(self):
         self.vae = (
@@ -182,10 +181,7 @@ class ImageToMultipleOf:
 
 
 class HFHubLoraLoader:
-    def __init__(self):
-        self.loaded_lora = None
-        self.loaded_lora_path = None
-
+    CATEGORY = "loaders"
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -205,11 +201,12 @@ class HFHubLoraLoader:
                 ),
             }
         }
-
     RETURN_TYPES = ("MODEL", "CLIP")
     FUNCTION = "load_lora"
 
-    CATEGORY = "loaders"
+    def __init__(self):
+        self.loaded_lora = None
+        self.loaded_lora_path = None
 
     def load_lora(
         self,
@@ -343,6 +340,135 @@ class GlifVariable:
         return (string_val, int_val, float_val)
 
 
+class FilmGrainNode:
+    CATEGORY = "image/postprocessing"
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "intensity": ("FLOAT", {
+                    "default": 0.1, 
+                    "min": 0.0, 
+                    "max": 1.0, 
+                    "step": 0.01
+                }),
+                "grain_size": ("FLOAT", {
+                    "default": 1.0, 
+                    "min": 0.5, 
+                    "max": 5.0, 
+                    "step": 0.1
+                }),
+                "grain_saturation": ("FLOAT", {
+                    "default": 0.0, 
+                    "min": 0.0, 
+                    "max": 1.0, 
+                    "step": 0.01
+                }),
+                "brightness_impact": ("FLOAT", {
+                    "default": 0.5, 
+                    "min": 0.0, 
+                    "max": 1.0, 
+                    "step": 0.01
+                }),
+                "image_saturation": ("FLOAT", {
+                    "default": 1.0, 
+                    "min": 0.0, 
+                    "max": 2.0, 
+                    "step": 0.01
+                }),
+                "mode": (["Color", "Black and White"],),
+            },
+        }
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "apply_film_grain"
+
+    def apply_film_grain(self, image, intensity, grain_size, grain_saturation, brightness_impact, image_saturation, mode):
+        device = image.device
+        batch_size, height, width, channels = image.shape
+
+        # Generate base noise
+        noise_h, noise_w = max(1, int(height / grain_size)), max(1, int(width / grain_size))
+        
+        # Generate monochrome noise
+        mono_noise = torch.randn(batch_size, noise_h, noise_w, 1, device=device)
+
+        # Generate color noise
+        color_noise = torch.randn(batch_size, noise_h, noise_w, channels, device=device)
+
+        # Blend monochrome and color noise based on saturation
+        noise = mono_noise.repeat(1, 1, 1, channels) * (1 - grain_saturation) + color_noise * grain_saturation
+
+        # Resize noise if necessary
+        if grain_size != 1.0:
+            noise = torch.nn.functional.interpolate(noise.permute(0, 3, 1, 2), 
+                                                    size=(height, width), 
+                                                    mode='bilinear', 
+                                                    align_corners=False)
+            noise = noise.permute(0, 2, 3, 1)
+
+        # Calculate brightness for brightness-dependent grain
+        brightness = 0.299 * image[..., 0] + 0.587 * image[..., 1] + 0.114 * image[..., 2]
+
+        # Modulate noise intensity based on brightness
+        brightness_factor = (1 - brightness_impact) + brightness_impact * brightness.unsqueeze(-1)
+        
+        # Apply noise with brightness adjustment
+        grain = (noise - 0.5) * intensity * brightness_factor
+        grainy_img = image + grain
+
+        # Apply image saturation adjustment in color mode
+        if mode == "Color":
+            # Convert to HSV
+            r, g, b = grainy_img[..., 0], grainy_img[..., 1], grainy_img[..., 2]
+            max_rgb, _ = torch.max(grainy_img, dim=-1)
+            min_rgb, _ = torch.min(grainy_img, dim=-1)
+            diff = max_rgb - min_rgb
+
+            # Value
+            v = max_rgb
+
+            # Saturation
+            s = torch.where(v != 0, diff / v, torch.zeros_like(v))
+
+            # Hue
+            h = torch.zeros_like(s)
+            h[r == v] = (60 * (g[r == v] - b[r == v]) / diff[r == v] % 360) / 360
+            h[g == v] = (120 + 60 * (b[g == v] - r[g == v]) / diff[g == v]) / 360
+            h[b == v] = (240 + 60 * (r[b == v] - g[b == v]) / diff[b == v]) / 360
+
+            # Adjust saturation
+            s = torch.clamp(s * image_saturation, 0, 1)
+
+            # Convert back to RGB
+            c = v * s
+            x = c * (1 - torch.abs((h * 6) % 2 - 1))
+            m = v - c
+
+            rgb = torch.zeros_like(grainy_img)
+            mask = (h < 1/6)
+            rgb[mask] = torch.stack([c[mask], x[mask], torch.zeros_like(x[mask])], dim=-1)
+            mask = (1/6 <= h) & (h < 2/6)
+            rgb[mask] = torch.stack([x[mask], c[mask], torch.zeros_like(x[mask])], dim=-1)
+            mask = (2/6 <= h) & (h < 3/6)
+            rgb[mask] = torch.stack([torch.zeros_like(x[mask]), c[mask], x[mask]], dim=-1)
+            mask = (3/6 <= h) & (h < 4/6)
+            rgb[mask] = torch.stack([torch.zeros_like(x[mask]), x[mask], c[mask]], dim=-1)
+            mask = (4/6 <= h) & (h < 5/6)
+            rgb[mask] = torch.stack([x[mask], torch.zeros_like(x[mask]), c[mask]], dim=-1)
+            mask = (5/6 <= h)
+            rgb[mask] = torch.stack([c[mask], torch.zeros_like(x[mask]), x[mask]], dim=-1)
+
+            grainy_img = rgb + m.unsqueeze(-1)
+
+        elif mode == "Black and White":
+            grainy_img = 0.299 * grainy_img[..., 0] + 0.587 * grainy_img[..., 1] + 0.114 * grainy_img[..., 2]
+            grainy_img = grainy_img.unsqueeze(-1).repeat(1, 1, 1, 3)
+
+        grainy_img = torch.clamp(grainy_img, 0, 1)
+
+        return (grainy_img,)
+
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
@@ -351,6 +477,7 @@ NODE_CLASS_MAPPINGS = {
     "HFHubLoraLoader": HFHubLoraLoader,
     "HFHubEmbeddingLoader": HFHubEmbeddingLoader,
     "GlifVariable": GlifVariable,
+    "FilmGrain": FilmGrainNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -361,4 +488,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "HFHubLoraLoader": "Load HF Lora",
     "HFHubEmbeddingLoader": "Load HF Embedding",
     "GlifVariable": "Glif Variable",
+    "FilmGrain": "Film Grain Effect"
 }
