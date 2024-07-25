@@ -469,6 +469,45 @@ class FilmGrainNode:
 
         return (grainy_img,)
 
+class HFHubCheckpointLoader:
+    CATEGORY = "loaders"
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "repo_id": ("STRING", {"default": ""}),
+                "filename": ("STRING", {"default": ""}),
+                "subfolder": ("STRING", {"default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL", "CLIP", "VAE")
+    FUNCTION = "load_checkpoint"
+
+    def load_checkpoint(self, repo_id: str, filename: str, subfolder: str):
+        cache_dir = find_or_create_cache()
+
+        ckpt_path = hf_hub_download(
+            repo_id=repo_id.strip(),
+            filename=filename.strip(),
+            subfolder=(
+                None
+                if subfolder is None or subfolder.strip() == ""
+                else subfolder.strip()
+            ),
+            cache_dir=cache_dir,
+        )
+
+        out = comfy.sd.load_checkpoint_guess_config(
+            ckpt_path,
+            output_vae=True,
+            output_clip=True,
+            embedding_directory=folder_paths.get_folder_paths("embeddings"),
+        )
+        return out[:3]
+
+
 NODE_CLASS_MAPPINGS = {
     "GlifConsistencyDecoder": ConsistencyDecoder,
     "GlifPatchConsistencyDecoderTiled": PatchDecoderTiled,
@@ -478,6 +517,7 @@ NODE_CLASS_MAPPINGS = {
     "HFHubEmbeddingLoader": HFHubEmbeddingLoader,
     "GlifVariable": GlifVariable,
     "FilmGrain": FilmGrainNode,
+    "HFHubCheckpointLoader": HFHubCheckpointLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -488,5 +528,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "HFHubLoraLoader": "Load HF Lora",
     "HFHubEmbeddingLoader": "Load HF Embedding",
     "GlifVariable": "Glif Variable",
-    "FilmGrain": "Film Grain Effect"
+    "FilmGrain": "Film Grain Effect",
+    "HFHubCheckpointLoader": "Load HF Checkpoint",
 }
