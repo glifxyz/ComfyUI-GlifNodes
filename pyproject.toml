@@ -2,7 +2,7 @@
 name = "comfyui-glifnodes"
 description = "Custom set of nodes used by glif.app. With glif you can build mini apps that are powered by custom comfy workflows."
 version = "1.0.0"
-license = "LICENSE"
+license = { file = "LICENSE" }
 dependencies = ["diffusers==0.24.0"]
 
 [project.urls]
