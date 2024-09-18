@@ -35,6 +35,14 @@ pip install -r requirements.txt
     <img src="docs/load_hf_embedding.png" max-height="500px"/>
 </details>
 <details>
+  <summary><b><code>LoraLoaderFromURL</code></b> load LoRAs using a url.</summary>
+    <img src="docs/load_lora_from_url.png" max-height="500px"/>
+    
+This will work with Huggingface, Civitai, and possibly others. Most models on Civitai will require an API key
+to download, which can be obtained on your [Civitai account page](https://civitai.com/user/account). Add it to your
+environment variables as `CIVITAI_API_KEY`.
+</details>
+<details>
   <summary><b><code>GlifVariable</code></b> easily use glif variables on the glif comfy editor</summary>
     <img src="docs/glif_variable.png" max-height="500px"/>
 </details>
