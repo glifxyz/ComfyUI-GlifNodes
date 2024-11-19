@@ -640,6 +640,85 @@ class LoraLoaderFromURL:
             model, clip, lora, strength_model, strength_clip
         )
         return (model_lora, clip_lora)
+    
+class ImagePaddingAdvanced:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "width": (
+                    "INT",
+                    {
+                        "default": 64,
+                        "min": 1,
+                        "max": 2048,
+                        "step": 16,
+                        "display": "number",
+                    },
+                ),
+                "height": (
+                    "INT",
+                    {
+                        "default": 64,
+                        "min": 1,
+                        "max": 2048,
+                        "step": 16,
+                        "display": "number",
+                    },
+                ),
+                "method": (["constant", "replicate", "reflect"],),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "run"
+    CATEGORY = "image"
+
+    def run(self, image: Tensor, width: int, height: int, method: str) -> Tuple[Tensor]:
+        """Pad or rescale image to target dimensions."""
+        _, orig_height, orig_width, _ = image.shape
+
+        if width > orig_width:
+            pad_width = width - orig_width
+        else:
+            pad_width = 0
+
+        if height > orig_height:
+            pad_height = height - orig_height
+        else:
+            pad_height = 0
+
+        if pad_height == 0 and pad_width == 0:
+            return (image,)
+
+        # Calculate padding for each side
+        pad_top = pad_height // 2
+        pad_bottom = pad_height - pad_top
+        pad_left = pad_width // 2 
+        pad_right = pad_width - pad_left
+
+        if method == "constant":
+            # Pad with zeros (black)
+            padded = torch.nn.functional.pad(
+                image, (0, 0, pad_left, pad_right, pad_top, pad_bottom), mode="constant", value=0
+            )
+            
+        elif method == "replicate":
+            # Extend edge pixels
+            padded = torch.nn.functional.pad(
+                image, (0, 0, pad_left, pad_right, pad_top, pad_bottom), mode="replicate"
+            )
+            
+        else: # mirror
+            # Mirror padding
+            padded = torch.nn.functional.pad(
+                image, (0, 0, pad_left, pad_right, pad_top, pad_bottom), mode="reflect"
+            )
+
+        return (padded,)
+
 
 
 NODE_CLASS_MAPPINGS = {
@@ -652,6 +731,7 @@ NODE_CLASS_MAPPINGS = {
     "HFHubEmbeddingLoader": HFHubEmbeddingLoader,
     "GlifVariable": GlifVariable,
     "FilmGrain": FilmGrainNode,
+    "ImagePaddingAdvanced": ImagePaddingAdvanced,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -663,5 +743,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoraLoaderFromURL": "Load Lora from URL",
     "HFHubEmbeddingLoader": "Load HF Embedding",
     "GlifVariable": "Glif Variable",
-    "FilmGrain": "Film Grain Effect"
+    "FilmGrain": "Film Grain Effect",
+    "ImagePaddingAdvanced": "Image Padding Advanced",
 }
