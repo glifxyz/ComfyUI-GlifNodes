@@ -4,7 +4,7 @@ Custom nodes for comfyUI.
 
 # Install
 
-```
+```shell
 pip install -r requirements.txt
 ```
 
@@ -53,3 +53,12 @@ environment variables as `CIVITAI_API_KEY`.
 
 diffusers: https://github.com/huggingface/diffusers
 openai - consistencydecoder: https://github.com/openai/consistencydecoder
+reddit user Total-Resort-3120 for float ramp node
+
+# dev
+
+Run tests:
+
+```shell
+python tests/test_image_padding_advanced.py 
+```

@@ -12,6 +12,7 @@ from huggingface_hub import hf_hub_download
 from torch import Tensor
 import requests
 import hashlib
+import math
 
 
 def find_or_create_cache():
@@ -718,6 +719,94 @@ class ImagePaddingAdvanced:
             )
 
         return (padded,)
+    
+class FluxReduxFloatRamp:
+    """
+    Shared by user https://new.reddit.com/user/Total-Resort-3120/ on Reddit.
+
+    > If someone has a github account and wants to put my node on comfyui manager, they're free to do so.
+    ref: https://new.reddit.com/r/StableDiffusion/comments/1gyb8t0/comment/lythmbe/?utm_source=share&utm_medium=mweb3x&utm_name=mweb3xcss&utm_term=1&utm_content=share_button
+
+    ref: https://new.reddit.com/r/StableDiffusion/comments/1gyb8t0/optimize_redux_as_a_style_transfer_tool_with_this/
+    
+    
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "start": ("FLOAT", {"default": 0.0, "min": -4096, "max": 4096, "step": 0.01}),
+            "end": ("FLOAT", {"default": 1.0, "min": -4096, "max": 4096, "step": 0.01}),
+            "steps_threshold": ("INT", {"default": 20, "min": 1, "max": 10000, "step": 1}),
+            "ramp_type": (["linear", "ease_in", "ease_out", "ease_in_out", "exponential", "smoothstep", "bounce"],),
+        },
+    }
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("value",)
+    FUNCTION = "get_value"
+
+    def ease_in(self, x):
+        return x * x
+
+    def ease_out(self, x):
+        return 1 - (1 - x) * (1 - x)
+
+    def ease_in_out(self, x):
+        return x * x * (3 - 2 * x)
+
+    def exponential(self, x):
+        return (math.exp(x) - 1) / (math.exp(1) - 1)
+
+    def smoothstep(self, x):
+        return x * x * (3 - 2 * x)
+
+    def bounce(self, x):
+        n1 = 7.5625
+        d1 = 2.75
+
+        if x < 1 / d1:
+            return n1 * x * x
+        elif x < 2 / d1:
+            x -= 1.5 / d1
+            return n1 * x * x + 0.75
+        elif x < 2.5 / d1:
+            x -= 2.25 / d1
+            return n1 * x * x + 0.9375
+        else:
+            x -= 2.625 / d1
+            return n1 * x * x + 0.984375
+
+    def get_value(self, start, end, steps_threshold, ramp_type):
+        current_step = getattr(self, 'i', 0) + 1
+        total_steps = getattr(self, 'total_steps', steps_threshold)
+
+        if current_step > steps_threshold:
+            return (end,)
+        
+        # Calculate basic progress
+        progress = current_step / steps_threshold
+
+        # Apply the selected ramp function
+        if ramp_type == "linear":
+            modified_progress = progress
+        elif ramp_type == "ease_in":
+            modified_progress = self.ease_in(progress)
+        elif ramp_type == "ease_out":
+            modified_progress = self.ease_out(progress)
+        elif ramp_type == "ease_in_out":
+            modified_progress = self.ease_in_out(progress)
+        elif ramp_type == "exponential":
+            modified_progress = self.exponential(progress)
+        elif ramp_type == "smoothstep":
+            modified_progress = self.smoothstep(progress)
+        elif ramp_type == "bounce":
+            modified_progress = self.bounce(progress)
+        else:
+            modified_progress = progress  # fallback to linear
+
+        # Calculate final value
+        value = start + (end - start) * modified_progress
+        
+        return (value,)
 
 
 
@@ -732,6 +821,7 @@ NODE_CLASS_MAPPINGS = {
     "GlifVariable": GlifVariable,
     "FilmGrain": FilmGrainNode,
     "ImagePaddingAdvanced": ImagePaddingAdvanced,
+    "FluxReduxFloatRamp": FluxReduxFloatRamp,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -745,4 +835,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GlifVariable": "Glif Variable",
     "FilmGrain": "Film Grain Effect",
     "ImagePaddingAdvanced": "Image Padding Advanced",
+    "FluxReduxFloatRamp": "Flux ReduxFloat Ramp",
 }
