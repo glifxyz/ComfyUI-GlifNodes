@@ -1,1 +1,1 @@
-diffusers==0.24.0
+diffusers>=0.28.0
